@@ -1,0 +1,21 @@
+#!/bin/bash
+
+#DEBHELPER#
+
+# Source debconf library.
+. /usr/share/debconf/confmodule
+
+# Set http server permissions
+chown -R www-data:www-data /var/www/baikal
+
+# Get MySQL password
+db_get aps/mysql_password || true
+export MYSQL_PWD=$RET
+
+# Create database
+mysql -e "CREATE DATABASE IF NOT EXISTS baikal"
+
+# Configure database access
+sed -r -i "s/%MYSQL_PASS%/${MYSQL_PWD}/" /var/www/baikal/config/baikal.yaml
+
+:

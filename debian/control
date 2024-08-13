@@ -1,0 +1,25 @@
+Source: baikal
+Section: admin
+Priority: optional
+Build-Depends: debhelper (>=9.2),
+    dpkg-dev,
+    quilt,
+    composer,
+    php8.2-mbstring,
+    php8.2-xml,
+    php8.2-curl,
+    php8.2-zip,
+    rsync,
+    zip,
+    unzip
+Standards-Version: 3.9.6
+Maintainer: Irontec Comms Team <vozip@irontec.com>
+
+Package: baikal
+Architecture: all
+Section: admin
+Priority: optional
+Depends: apache2, php8.2-fpm, php8.2-cli, php8.2-mysql, php8.2-mbstring
+Homepage: https://sabre.io/baikal/
+Description: Baikal - CardDav contacts server
+ .

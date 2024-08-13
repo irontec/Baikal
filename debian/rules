@@ -1,0 +1,13 @@
+#!/usr/bin/make -f
+
+unzip_sources:
+	unzip build/baikal-0.9.5.zip -d profile/var/www
+
+override_dh_install: unzip_sources
+	dh_install
+
+override_dh_strip_nondeterminism:
+
+%:
+	dh $@ --with quilt
+
