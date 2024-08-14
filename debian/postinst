@@ -18,4 +18,7 @@ mysql -e "CREATE DATABASE IF NOT EXISTS baikal"
 # Configure database access
 sed -r -i "s/%MYSQL_PASS%/${MYSQL_PWD}/" /var/www/baikal/config/baikal.yaml
 
+# Enable apache site
+/usr/sbin/a2ensite -q 040-baikal.conf
+
 :

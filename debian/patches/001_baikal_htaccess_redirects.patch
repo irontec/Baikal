@@ -1,0 +1,14 @@
+diff --git a/html/.htaccess b/html/.htaccess
+index d5d0995..e76b58d 100644
+--- a/html/.htaccess
++++ b/html/.htaccess
+@@ -16,6 +16,7 @@
+ </IfModule>
+ 
+ <IfModule mod_alias.c>
+-	Redirect 308 /.well-known/caldav /dav.php
+-	Redirect 308 /.well-known/carddav /dav.php
++	Redirect 308 /.well-known/caldav /baikal/dav.php
++	Redirect 308 /.well-known/carddav /baikal/dav.php
++	Redirect 308 /addressbooks /baikal/dav.php/addressbooks
+ </IfModule>

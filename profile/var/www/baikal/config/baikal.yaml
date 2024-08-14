@@ -7,7 +7,7 @@ system:
     admin_passwordhash: 6a91b0f389a6148f5a5c97b61e4352d318ca1b738570e4871350f27a5e5b8328
     failed_access_message: 'user %u authentication failure for Baikal'
     auth_realm: BaikalDAV
-    base_uri: ''
+    base_uri: 'baikal'
     invite_from: ''
 database:
     sqlite_file: /var/www/baikal/Specific/db/db.sqlite
