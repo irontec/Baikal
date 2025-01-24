@@ -1,4 +1,10 @@
-baikal (0.9.5) UNRELEASED; urgency=medium
+baikal (0.10.1) UNRELEASED; urgency=medium
+
+  * Version bump to 0.10.1
+
+ -- Irontec Comms Team <vozip@irontec.com>  Fri, 24 Jan 2025 08:26:29 +0100
+
+baikal (0.9.5) stable; urgency=medium
 
   * Initial package version
 
