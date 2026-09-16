@@ -42,6 +42,19 @@ ingress:
   #    hosts:
   #      - baikal.example.com
 
+  # Extra prefixes the same Baikal answers on, for clients already pointed at a
+  # path this deployment no longer serves from. Each is added to every host in
+  # `hosts` and stripped before the request reaches the container, which serves
+  # from the root either way. Traefik only. Leave `config.baseUri` empty: the
+  # prefix is gone by the time PHP sees the request.
+  aliasPaths: []
+  #  - /baikal
+
+  # Traefik CRD group. traefik.containo.us/v1alpha1 on Traefik v2.
+  traefikApiVersion: traefik.io/v1alpha1
+  # Middleware refs chained ahead of the chart's own, e.g. "default-auth@kubernetescrd".
+  traefikMiddlewares: []
+
   # Redirect /.well-known/caldav and /.well-known/carddav to dav.php at the
   # ingress instead of relying on the image, which drops the port on redirects.
   wellKnownRedirect:
@@ -49,9 +62,6 @@ ingress:
     # nginx: configuration-snippet annotation, needs allow-snippet-annotations=true.
     # traefik: a redirectRegex Middleware plus a router.middlewares annotation.
     controller: nginx
-    traefikApiVersion: traefik.io/v1alpha1
-    # Middleware refs chained before this one, e.g. "default-auth@kubernetescrd".
-    traefikMiddlewares: []
 
 resources: {}
 

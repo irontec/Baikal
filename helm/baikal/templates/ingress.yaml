@@ -2,13 +2,20 @@
 {{- $fullName := include "baikal.fullname" . -}}
 {{- $svcPort := .Values.service.port -}}
 {{- $redirect := .Values.ingress.wellKnownRedirect -}}
+{{- $aliases := .Values.ingress.aliasPaths -}}
 {{- if and $redirect.enabled (not (has $redirect.controller (list "nginx" "traefik"))) -}}
 {{- fail (printf "ingress.wellKnownRedirect.controller must be \"nginx\" or \"traefik\", got %q" $redirect.controller) -}}
 {{- end -}}
+{{- if and $aliases $redirect.enabled (eq $redirect.controller "nginx") -}}
+{{- fail "ingress.aliasPaths is Traefik only; it renders a Middleware nothing on an nginx ingress reads" -}}
+{{- end -}}
 {{- $davPath := printf "%s/dav.php" (trimSuffix "/" .Values.config.baseUri) -}}
-{{- $middlewares := list -}}
+{{- $middlewares := default (list) .Values.ingress.traefikMiddlewares -}}
+{{- if $aliases -}}
+{{- $middlewares = append $middlewares (printf "%s-%s-aliases@kubernetescrd" .Release.Namespace $fullName) -}}
+{{- end -}}
 {{- if and $redirect.enabled (eq $redirect.controller "traefik") -}}
-{{- $middlewares = concat $redirect.traefikMiddlewares (list (printf "%s-%s-wellknown@kubernetescrd" .Release.Namespace $fullName)) -}}
+{{- $middlewares = append $middlewares (printf "%s-%s-wellknown@kubernetescrd" .Release.Namespace $fullName) -}}
 {{- end -}}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -45,6 +52,15 @@ spec:
           {{- range .paths }}
           - path: {{ .path }}
             pathType: {{ .pathType | default "Prefix" }}
+            backend:
+              service:
+                name: {{ $fullName }}
+                port:
+                  number: {{ $svcPort }}
+          {{- end }}
+          {{- range $aliases }}
+          - path: {{ . }}
+            pathType: Prefix
             backend:
               service:
                 name: {{ $fullName }}

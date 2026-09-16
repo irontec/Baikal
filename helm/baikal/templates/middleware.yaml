@@ -1,7 +1,23 @@
 {{- $redirect := .Values.ingress.wellKnownRedirect -}}
+{{- $aliases := .Values.ingress.aliasPaths -}}
+{{- if and .Values.ingress.enabled $aliases }}
+apiVersion: {{ .Values.ingress.traefikApiVersion }}
+kind: Middleware
+metadata:
+  name: {{ include "baikal.fullname" . }}-aliases
+  labels:
+    {{- include "baikal.labels" . | nindent 4 }}
+spec:
+  stripPrefix:
+    # The container serves from the root, so an unstripped alias is a 404 from
+    # it while the Ingress and the certificate both read healthy.
+    prefixes:
+      {{- toYaml $aliases | nindent 6 }}
+{{- end }}
 {{- if and .Values.ingress.enabled $redirect.enabled (eq $redirect.controller "traefik") }}
 {{- $davPath := printf "%s/dav.php" (trimSuffix "/" .Values.config.baseUri) }}
-apiVersion: {{ $redirect.traefikApiVersion }}
+---
+apiVersion: {{ .Values.ingress.traefikApiVersion }}
 kind: Middleware
 metadata:
   name: {{ include "baikal.fullname" . }}-wellknown

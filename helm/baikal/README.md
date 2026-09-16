@@ -78,9 +78,44 @@ See [values.yaml](values.yaml). Notable ones:
 | `image.repository` / `image.variant` | `ckulka/baikal` / `nginx` | Tag defaults to `<appVersion>-<variant>`. |
 | `config.authType` | `Digest` | `Digest`, `Basic` or `Apache`. Use `Basic` only behind TLS. |
 | `config.baseUri` | `""` | Set when Baikal is not served from the host root, e.g. `/baikal/`. |
+| `ingress.aliasPaths` | `[]` | Extra prefixes the same Baikal answers on, stripped at the ingress. Traefik only. See below. |
 | `ingress.wellKnownRedirect.enabled` | `false` | Redirect `/.well-known/ca(l\|rd)dav` to `dav.php` at the ingress. See below. |
 | `ingress.wellKnownRedirect.controller` | `nginx` | `nginx` or `traefik`. |
 | `database.port` | `3306` | Appended to `mysql_host` as `:port` only when different from 3306. |
+
+## Alias paths
+
+Clients already configured against a Baikal served under a path — `/baikal/dav.php/…`
+is the usual one — keep working without being reconfigured:
+
+```yaml
+ingress:
+  aliasPaths:
+    - /baikal
+```
+
+Each alias is added to **every** host in `ingress.hosts` and to a `stripPrefix`
+Middleware chained ahead of the chart's own, so the prefix is gone before the request
+reaches the container, which serves from the root either way. Traefik only: on an
+nginx ingress the chart fails rather than render a Middleware nothing reads.
+
+**Leave `config.baseUri` empty when you use this**, however tempting it looks. An
+alias is stripped before PHP sees it while `base_uri` asserts PHP will see it, and
+SabreDAV rejects the contradiction on every DAV request:
+
+```
+LogicException: Requested uri (/dav.php/) is out of base uri (/baikal/dav.php/)
+```
+
+The web UI still answers `200` while that happens, so it reads as a working Baikal
+whose address books are all broken.
+
+The consequence of an empty `base_uri` is that every `href` Baikal emits is
+unprefixed. A client that opens `/baikal/dav.php/addressbooks/…` gets its collection
+and then follows links under `/dav.php/…`, so **route the root as well** — an alias
+is a way in, not a second installation. `config.baseUri` is for the other case
+entirely: a server in front that already mounts Baikal at that path and passes it
+through.
 
 ## .well-known redirects
 
@@ -93,9 +128,9 @@ instead:
   with `allow-snippet-annotations=true`.
 - `controller: traefik` creates a `redirectRegex` Middleware and references it from a
   `traefik.ingress.kubernetes.io/router.middlewares` annotation. Set
-  `traefikApiVersion` to `traefik.containo.us/v1alpha1` on Traefik v2. If the router
-  already needs other middlewares, list them in `traefikMiddlewares`; they are chained
-  before this one.
+  `ingress.traefikApiVersion` to `traefik.containo.us/v1alpha1` on Traefik v2. If the
+  router already needs other middlewares, list them in `ingress.traefikMiddlewares`;
+  they are chained ahead of everything the chart adds.
 
 Both emit a `301`, not the `308` Baikal itself uses. Clients treat them the same here
 because the redirect only ever targets `GET`/`PROPFIND` discovery requests.
