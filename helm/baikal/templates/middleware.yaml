@@ -1,0 +1,16 @@
+{{- $redirect := .Values.ingress.wellKnownRedirect -}}
+{{- if and .Values.ingress.enabled $redirect.enabled (eq $redirect.controller "traefik") }}
+{{- $davPath := printf "%s/dav.php" (trimSuffix "/" .Values.config.baseUri) }}
+apiVersion: {{ $redirect.traefikApiVersion }}
+kind: Middleware
+metadata:
+  name: {{ include "baikal.fullname" . }}-wellknown
+  labels:
+    {{- include "baikal.labels" . | nindent 4 }}
+spec:
+  redirectRegex:
+    # Traefik matches the full URL, so the scheme and host are captured and kept.
+    regex: '^(https?)://([^/]+)/\.well-known/ca(l|rd)dav/?$'
+    replacement: '${1}://${2}{{ $davPath }}'
+    permanent: true
+{{- end }}

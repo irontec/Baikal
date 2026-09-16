@@ -1,0 +1,19 @@
+apiVersion: v2
+name: baikal
+description: Baïkal - servidor CalDAV y CardDAV ligero basado en SabreDAV
+type: application
+version: 0.1.0
+appVersion: "0.10.1"
+home: https://sabre.io/baikal/
+sources:
+  - https://github.com/irontec/Baikal
+  - https://github.com/ckulka/baikal-docker
+keywords:
+  - caldav
+  - carddav
+  - calendar
+  - contacts
+  - sabredav
+maintainers:
+  - name: Irontec Comms Team
+    email: vozip@irontec.com
