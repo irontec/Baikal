@@ -1,0 +1,55 @@
+{{- if .Values.ingress.enabled -}}
+{{- $fullName := include "baikal.fullname" . -}}
+{{- $svcPort := .Values.service.port -}}
+{{- $redirect := .Values.ingress.wellKnownRedirect -}}
+{{- if and $redirect.enabled (not (has $redirect.controller (list "nginx" "traefik"))) -}}
+{{- fail (printf "ingress.wellKnownRedirect.controller must be \"nginx\" or \"traefik\", got %q" $redirect.controller) -}}
+{{- end -}}
+{{- $davPath := printf "%s/dav.php" (trimSuffix "/" .Values.config.baseUri) -}}
+{{- $middlewares := list -}}
+{{- if and $redirect.enabled (eq $redirect.controller "traefik") -}}
+{{- $middlewares = concat $redirect.traefikMiddlewares (list (printf "%s-%s-wellknown@kubernetescrd" .Release.Namespace $fullName)) -}}
+{{- end -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $fullName }}
+  labels:
+    {{- include "baikal.labels" . | nindent 4 }}
+  {{- if or .Values.ingress.annotations $middlewares (and $redirect.enabled (eq $redirect.controller "nginx")) }}
+  annotations:
+    {{- with .Values.ingress.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- if and $redirect.enabled (eq $redirect.controller "nginx") }}
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      rewrite ^/\.well-known/ca(l|rd)dav/?$ {{ $davPath }} permanent;
+    {{- end }}
+    {{- with $middlewares }}
+    traefik.ingress.kubernetes.io/router.middlewares: {{ join "," . | quote }}
+    {{- end }}
+  {{- end }}
+spec:
+  {{- with .Values.ingress.className }}
+  ingressClassName: {{ . }}
+  {{- end }}
+  {{- with .Values.ingress.tls }}
+  tls:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  rules:
+    {{- range .Values.ingress.hosts }}
+    - host: {{ .host | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path }}
+            pathType: {{ .pathType | default "Prefix" }}
+            backend:
+              service:
+                name: {{ $fullName }}
+                port:
+                  number: {{ $svcPort }}
+          {{- end }}
+    {{- end }}
+{{- end }}

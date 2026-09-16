@@ -1,0 +1,127 @@
+replicaCount: 1
+
+image:
+  repository: ckulka/baikal
+  # Defaults to "<appVersion>-<variant>", e.g. "0.10.1-nginx".
+  tag: ""
+  variant: nginx
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: false
+  name: ""
+  annotations: {}
+
+podAnnotations: {}
+podLabels: {}
+
+# nginx and php-fpm masters run as root in this image, workers drop to www-data.
+podSecurityContext: {}
+securityContext: {}
+
+service:
+  type: ClusterIP
+  port: 80
+  annotations: {}
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: baikal.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  #  - secretName: baikal-tls
+  #    hosts:
+  #      - baikal.example.com
+
+  # Redirect /.well-known/caldav and /.well-known/carddav to dav.php at the
+  # ingress instead of relying on the image, which drops the port on redirects.
+  wellKnownRedirect:
+    enabled: false
+    # nginx: configuration-snippet annotation, needs allow-snippet-annotations=true.
+    # traefik: a redirectRegex Middleware plus a router.middlewares annotation.
+    controller: nginx
+    traefikApiVersion: traefik.io/v1alpha1
+    # Middleware refs chained before this one, e.g. "default-auth@kubernetescrd".
+    traefikMiddlewares: []
+
+resources: {}
+
+livenessProbe:
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 15
+  periodSeconds: 20
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+topologySpreadConstraints: []
+
+config:
+  # true: chart renders config/baikal.yaml and the web installer is skipped.
+  #       The SQL schema must already exist in the database.
+  # false: no config is seeded, the web installer runs and its output is lost on pod restart.
+  manage: true
+
+  timezone: Europe/Madrid
+  calEnabled: true
+  cardEnabled: true
+  # Digest | Basic | Apache
+  authType: Digest
+  authRealm: BaikalDAV
+  # URL prefix when Baikal is not served from the host root, e.g. "/baikal/".
+  baseUri: ""
+  inviteFrom: ""
+  failedAccessMessage: 'user %u authentication failure for Baikal'
+  configuredVersion: ""
+
+  # Hashed by the chart as sha256("admin:<authRealm>:<adminPassword>").
+  adminPassword: ""
+  adminPasswordHash: ""
+
+  # Empty: reuse the value already stored in the Secret, else generate a random one.
+  encryptionKey: ""
+
+  # Existing Secret holding a full "baikal.yaml" key. Disables the rest of config.*
+  existingSecret: ""
+
+  # Baikal requires config/baikal.yaml to be writable by the web server user.
+  fileOwner: "33:33"
+
+database:
+  backend: mysql
+  host: ""
+  port: 3306
+  name: baikal
+  user: baikal
+  password: ""
+  existingSecret: ""
+  existingSecretPasswordKey: mysql-password
+
+extraEnv: []
+extraEnvFrom: []
+
+# Mount a PVC on /var/www/baikal/config here to persist admin panel changes.
+extraVolumes: []
+extraVolumeMounts: []

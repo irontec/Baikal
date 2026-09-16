@@ -1,0 +1,145 @@
+{{- $seedConfig := .Values.config.manage -}}
+{{- $renderConfig := and .Values.config.manage (not .Values.config.existingSecret) -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "baikal.fullname" . }}
+  labels:
+    {{- include "baikal.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "baikal.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        {{- if $renderConfig }}
+        checksum/config: {{ include "baikal.configFile" . | sha256sum }}
+        {{- end }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "baikal.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "baikal.serviceAccountName" . }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      initContainers:
+        # Baikal requires config/baikal.yaml to be writable, so the config is
+        # copied into an emptyDir instead of mounting the read-only Secret.
+        - name: seed-config
+          image: {{ include "baikal.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            runAsUser: 0
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -eu
+              {{- if $seedConfig }}
+              cat > /tmp/seed-config.php <<'PHPSEED'
+              <?php
+              $config = file_get_contents('/seed/baikal.yaml');
+              $password = (string) getenv('BAIKAL_MYSQL_PASSWORD');
+              $quoted = "'" . str_replace("'", "''", $password) . "'";
+              $config = str_replace('%MYSQL_PASSWORD%', $quoted, $config);
+              file_put_contents('/var/www/baikal/config/baikal.yaml', $config);
+              PHPSEED
+              php /tmp/seed-config.php
+              chmod 0640 /var/www/baikal/config/baikal.yaml
+              {{- end }}
+              chown -R {{ .Values.config.fileOwner }} /var/www/baikal/config
+          env:
+            - name: BAIKAL_MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "baikal.dbSecretName" . }}
+                  key: {{ include "baikal.dbSecretPasswordKey" . }}
+          volumeMounts:
+            - name: config
+              mountPath: /var/www/baikal/config
+            {{- if $seedConfig }}
+            - name: config-seed
+              mountPath: /seed
+              readOnly: true
+            {{- end }}
+      containers:
+        - name: baikal
+          image: {{ include "baikal.image" . }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- with .Values.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          {{- with .Values.extraEnv }}
+          env:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.extraEnvFrom }}
+          envFrom:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: config
+              mountPath: /var/www/baikal/config
+            {{- with .Values.extraVolumeMounts }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+      volumes:
+        - name: config
+          emptyDir: {}
+        {{- if $seedConfig }}
+        - name: config-seed
+          secret:
+            secretName: {{ include "baikal.configSecretName" . }}
+            items:
+              - key: baikal.yaml
+                path: baikal.yaml
+        {{- end }}
+        {{- with .Values.extraVolumes }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
